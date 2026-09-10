@@ -1,0 +1,6 @@
+[antigravity]
+name=Google Antigravity
+baseurl=https://gnpaone.github.io/agy-dnf/repo
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
