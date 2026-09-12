@@ -83,7 +83,7 @@ print(f"IDE: {ide_ver} -> {ide_url}")
 spec_content = f"""
 Name:           antigravity
 Version:        {desktop_ver}
-Release:        1%{{?dist}}
+Release:        2%{{?dist}}
 Summary:        Google Antigravity 2.0 (Wrapper)
 License:        Proprietary
 URL:            https://antigravity.google
@@ -132,6 +132,7 @@ Type=Application
 Icon=antigravity
 StartupWMClass=antigravity
 Categories=Development;
+MimeType=x-scheme-handler/antigravity;
 DESKTOP
 
 # IDE Desktop file
@@ -144,6 +145,7 @@ Type=Application
 Icon=antigravity-ide
 StartupWMClass=antigravity-ide
 Categories=Development;IDE;
+MimeType=x-scheme-handler/antigravity-ide;
 DESKTOP
 
 %post
@@ -151,10 +153,10 @@ mkdir -p /opt/antigravity
 echo "Downloading Antigravity Desktop {desktop_ver}..."
 curl -sL "{desktop_url}" | tar -xz -C /opt/antigravity --strip-components=1 || true
 ln -sf /opt/antigravity/antigravity %{{_bindir}}/antigravity || true
-if [ -f /opt/antigravity/antigravity.png ]; then
-    cp /opt/antigravity/antigravity.png %{{_datadir}}/icons/hicolor/512x512/apps/antigravity.png || true
-fi
+mkdir -p %{{_datadir}}/icons/hicolor/512x512/apps
+curl -sL "https://antigravity.google/apple-touch-icon.png" > %{{_datadir}}/icons/hicolor/512x512/apps/antigravity.png || true
 gtk-update-icon-cache -f -t %{{_datadir}}/icons/hicolor || true
+update-desktop-database %{{_datadir}}/applications &> /dev/null || :
 
 %preun
 if [ $1 -eq 0 ]; then
@@ -167,7 +169,7 @@ fi
 mkdir -p /opt/antigravity-cli
 echo "Downloading Antigravity CLI {cli_ver}..."
 curl -sL "{cli_url}" | tar -xz -C /opt/antigravity-cli || true
-ln -sf /opt/antigravity-cli/agy %{{_bindir}}/agy || true
+ln -sf /opt/antigravity-cli/antigravity %{{_bindir}}/agy || true
 
 %preun cli
 if [ $1 -eq 0 ]; then
@@ -180,10 +182,10 @@ mkdir -p /opt/antigravity-ide
 echo "Downloading Antigravity IDE {ide_ver}..."
 curl -sL "{ide_url}" | tar -xz -C /opt/antigravity-ide --strip-components=1 || true
 ln -sf /opt/antigravity-ide/antigravity-ide %{{_bindir}}/antigravity-ide || true
-if [ -f /opt/antigravity-ide/antigravity-ide.png ]; then
-    cp /opt/antigravity-ide/antigravity-ide.png %{{_datadir}}/icons/hicolor/512x512/apps/antigravity-ide.png || true
-fi
+mkdir -p %{{_datadir}}/icons/hicolor/512x512/apps
+curl -sL "https://antigravity.google/apple-touch-icon.png" > %{{_datadir}}/icons/hicolor/512x512/apps/antigravity-ide.png || true
 gtk-update-icon-cache -f -t %{{_datadir}}/icons/hicolor || true
+update-desktop-database %{{_datadir}}/applications &> /dev/null || :
 
 %preun ide
 if [ $1 -eq 0 ]; then
