@@ -37,45 +37,17 @@ try:
         data = gzip.decompress(data)
     html = data.decode('utf-8', errors='replace')
     
-    matches = re.findall(r'(?:src|href)=["\']([^"\']+\.js)["\']', html)
-    
     desktop_url = ""
     ide_url = ""
 
-    for match in matches:
-        if not match.startswith('http'):
-            js_url = urljoin(url, match)
-        else:
-            js_url = match
-        try:
-            req_js = urllib.request.Request(js_url, headers={'User-Agent': 'Mozilla/5.0'})
-            resp_js = urllib.request.urlopen(req_js)
-            js_data = resp_js.read()
-            if resp_js.info().get('Content-Encoding') == 'gzip':
-                js_data = gzip.decompress(js_data)
-            js = js_data.decode('utf-8', errors='replace')
-            
-            if not desktop_url:
-                start_desktop = js.find('id:"antigravity-2"')
-                if start_desktop != -1:
-                    section = js[start_desktop:start_desktop+5000]
-                    m = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity\.tar\.gz', section)
-                    if m:
-                        desktop_url = m.group(0)
+    m_desktop = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity\.tar\.gz', html)
+    if m_desktop:
+        desktop_url = m_desktop.group(0)
 
-            if not ide_url:
-                start_ide = js.find('id:"antigravity-ide"')
-                if start_ide != -1:
-                    section = js[start_ide:start_ide+5000]
-                    m = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity[^"\']*IDE\.tar\.gz', section)
-                    if m:
-                        ide_url = m.group(0)
-                        
-            if desktop_url and ide_url:
-                break
-        except Exception as e:
-            continue
-
+    m_ide = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity[^"\']*IDE\.tar\.gz', html)
+    if m_ide:
+        ide_url = m_ide.group(0)
+    
     def extract_version(url_str):
         if not url_str:
             return '1.0.0'
