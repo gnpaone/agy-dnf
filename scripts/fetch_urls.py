@@ -5,38 +5,24 @@ from urllib.parse import urljoin, unquote
 
 def get_desktop_and_ide_urls():
     url = "https://antigravity.google/download"
-    req = urllib.request.Request(url, headers={'Accept-Encoding': 'identity'})
-    html = urllib.request.urlopen(req).read().decode('utf-8', errors='replace')
-    
-    matches = re.findall(r'(?:src|href)=["\']([^"\']*main-[^"\']+\.js)["\']', html)
-    if not matches:
-        matches = re.findall(r'(?:src|href)=["\']([^"\']+\.js)["\']', html)
-    
-    js_url = urljoin(url, matches[-1])
-    js = urllib.request.urlopen(js_url).read().decode('utf-8', errors='replace')
+    import gzip
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    resp = urllib.request.urlopen(req)
+    data = resp.read()
+    if resp.info().get('Content-Encoding') == 'gzip':
+        data = gzip.decompress(data)
+    html = data.decode('utf-8', errors='replace')
     
     desktop_url = None
     ide_url = None
-    
-    start = js.find('id:"antigravity-2"')
-    if start != -1:
-        end = js.find('id:"antigravity-cli"', start)
-        section = js[start:end if end != -1 else None]
-        pattern = r'https?://[^"\'\s<>)]*/linux-x64/Antigravity\.tar\.gz'
-        m = re.findall(pattern, section)
-        if m:
-            desktop_url = m[-1]
-    
-    start = js.find('id:"antigravity-ide"')
-    if start != -1:
-        end = js.find('id:"antigravity-sdk"', start)
-        section = js[start:end if end != -1 else None]
-        for filename_re in [r'Antigravity%20IDE\.tar\.gz', r'Antigravity\+IDE\.tar\.gz', r'Antigravity IDE\.tar\.gz']:
-            pattern = r'https?://[^"\'\s<>)]*/linux-x64/' + filename_re
-            m = re.findall(pattern, section)
-            if m:
-                ide_url = m[-1]
-                break
+
+    m_desktop = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity\.tar\.gz', html)
+    if m_desktop:
+        desktop_url = m_desktop.group(0)
+
+    m_ide = re.search(r'https?://[^\s<>\)"\']*/linux-x64/Antigravity[^"\']*IDE\.tar\.gz', html)
+    if m_ide:
+        ide_url = m_ide.group(0)
 
     return desktop_url, ide_url
 
