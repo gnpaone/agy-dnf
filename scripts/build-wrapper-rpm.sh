@@ -4,6 +4,48 @@ set -euo pipefail
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 mkdir -p public/repo
 
+echo "Fetching existing RPMs from repository..."
+python3 - <<'EOF_FETCH'
+import urllib.request
+import xml.etree.ElementTree as ET
+import gzip
+import os
+
+repo_url = "https://gnpaone.github.io/agy-dnf/repo/"
+
+try:
+    repomd_url = repo_url + "repodata/repomd.xml"
+    req = urllib.request.Request(repomd_url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+    resp = urllib.request.urlopen(req)
+    repomd_xml = resp.read()
+
+    root = ET.fromstring(repomd_xml)
+    ns = {'repo': 'http://linux.duke.edu/metadata/repo'}
+    primary_location = root.find(".//repo:data[@type='primary']/repo:location", ns)
+    if primary_location is not None:
+        primary_href = primary_location.attrib['href']
+        
+        primary_url = repo_url + primary_href
+        req = urllib.request.Request(primary_url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+        resp = urllib.request.urlopen(req)
+        primary_gz = resp.read()
+        primary_xml = gzip.decompress(primary_gz)
+
+        primary_root = ET.fromstring(primary_xml)
+        common_ns = {'common': 'http://linux.duke.edu/metadata/common'}
+        for location in primary_root.findall(".//common:location", common_ns):
+            rpm_href = location.attrib['href']
+            rpm_url = repo_url + rpm_href
+            rpm_filename = os.path.basename(rpm_href)
+            print(f"Downloading existing RPM: {rpm_filename}")
+            try:
+                urllib.request.urlretrieve(rpm_url, os.path.join("public/repo", rpm_filename))
+            except Exception as e:
+                print(f"Failed to download {rpm_url}: {e}")
+except Exception as e:
+    print(f"Could not fetch existing repository metadata (might be first run): {e}")
+EOF_FETCH
+
 echo "Fetching latest versions and generating spec..."
 python3 - <<'EOF'
 import json
@@ -17,7 +59,7 @@ import gzip
 # 1. Fetch CLI
 try:
     cli_manifest_url = "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json"
-    req = urllib.request.Request(cli_manifest_url, headers={'User-Agent': 'Mozilla/5.0'})
+    req = urllib.request.Request(cli_manifest_url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
     resp = urllib.request.urlopen(req)
     cli_data = json.loads(resp.read().decode('utf-8'))
     cli_url = cli_data.get('url', '')
@@ -30,7 +72,7 @@ except Exception as e:
 # 2. Fetch Desktop & IDE
 try:
     url = "https://antigravity.google/download"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
     resp = urllib.request.urlopen(req)
     data = resp.read()
     if resp.info().get('Content-Encoding') == 'gzip':
@@ -214,6 +256,6 @@ echo "Building wrapper RPMs..."
 rpmbuild -bb ~/rpmbuild/SPECS/antigravity.spec
 
 echo "Copying RPMs to repo directory..."
-cp ~/rpmbuild/RPMS/x86_64/*.rpm public/repo/
+cp -n ~/rpmbuild/RPMS/x86_64/*.rpm public/repo/ || true
 
 echo "Done."
